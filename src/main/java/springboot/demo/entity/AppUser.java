@@ -20,10 +20,10 @@ public class AppUser {
     private String username;
 
     @Column(nullable = false)
-    private String password; // demo: plaintext if using NoOp encoder (change for prod)
+    private String password;
 
     @Column(nullable = false)
-    private String role; // "ADMIN" | "TEACHER" | "STUDENT"
+    private String role;
 
     @Column(name = "student_id")
     private Long studentId;

@@ -86,7 +86,6 @@
 //}
 package springboot.demo.controller;
 
-import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
@@ -95,11 +94,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import springboot.demo.dto.*;
 import springboot.demo.service.*;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,20 +111,31 @@ public class AdminController {
     private final StudentService studentService;
     private final TeacherService teacherService;
     private final SubjectService subjectService;
-    private final EnrollmentService enrollmentService;
-    private final RoomService roomService;
+    private final ClassSubjectTeacherService classSubjectTeacherService;
+    private final ScheduleService scheduleService;
+    public final EnrollmentService enrollmentService;
+
 
     // Students
     @GetMapping("/students")
     public List<StudentDTO> allStudents(){ return studentService.findAll(); }
 
-    @GetMapping("/students/{id}")
-    public StudentDTO getStudent(@PathVariable Long id){ return studentService.findById(id); }
+    @GetMapping("/studentsWithSubjectAnhGrade/{id}")
+    public List<EnrollmentDTO> getStudent(@PathVariable Long id){ return enrollmentService.findByStudent(id); }
+
+    @GetMapping("/studentsOfClass/{classID}")
+    public List<StudentDTO> getStudentsByClass(@PathVariable Long classID){
+        return studentService.findByClass(classID);
+    }
+
+    @GetMapping("/studentsWithName/{name}")
+    public List<StudentDTO> findStudentsByName(@PathVariable String name){
+        return studentService.findStudentByName(name);
+    }
 
 
     @PostMapping("/students")
-    public ResponseEntity<?> createStudent(@RequestBody StudentDTO dto){
-        // use createWithAccount which returns student + initialPassword (if user created)
+    public ResponseEntity<?> createStudent(@Valid @RequestBody StudentDTO dto){
         StudentService.CreateResult res = studentService.createWithAccount(dto);
         Map<String, Object> body = new HashMap<>();
         body.put("student", res.getStudent());
@@ -137,7 +147,7 @@ public class AdminController {
     }
 
     @PutMapping("/students/{id}")
-    public StudentDTO updateStudent(@PathVariable Long id, @RequestBody StudentDTO dto){ return studentService.update(id, dto); }
+    public StudentDTO updateStudent(@PathVariable Long id, @Valid @RequestBody StudentDTO dto){ return studentService.update(id, dto); }
 
     @DeleteMapping("/students/{id}")
     public ResponseEntity<?> deleteStudent(@PathVariable Long id){ studentService.delete(id); return ResponseEntity.ok().build(); }
@@ -149,10 +159,13 @@ public class AdminController {
     @GetMapping("/teachers/{id}")
     public TeacherDTO getTeacher(@PathVariable Long id){ return teacherService.findById(id); }
 
+    @GetMapping("/teachersWithName/{name}")
+    public List<TeacherDTO> findTeachersByName(@PathVariable String name){
+        return teacherService.findTeacherByName(name);
+    }
 
     @PostMapping("/teachers")
-    public ResponseEntity<?> createTeacher(@RequestBody TeacherDTO dto){
-        // we expect TeacherService.createWithAccount(...) to exist and behave like StudentService.createWithAccount(...)
+    public ResponseEntity<?> createTeacher(@Valid @RequestBody TeacherDTO dto){
         TeacherService.CreateResult res = teacherService.createWithAccount(dto);
         Map<String, Object> body = new HashMap<>();
         body.put("teacher", res.getTeacher());
@@ -164,7 +177,7 @@ public class AdminController {
     }
 
     @PutMapping("/teachers/{id}")
-    public TeacherDTO updateTeacher(@PathVariable Long id, @RequestBody TeacherDTO dto){ return teacherService.update(id,dto); }
+    public TeacherDTO updateTeacher(@PathVariable Long id, @Valid @RequestBody TeacherDTO dto){ return teacherService.update(id,dto); }
 
     @DeleteMapping("/teachers/{id}")
     public ResponseEntity<?> deleteTeacher(@PathVariable Long id){ teacherService.delete(id); return ResponseEntity.ok().build(); }
@@ -176,26 +189,146 @@ public class AdminController {
     @GetMapping("/subjects/{id}")
     public SubjectDTO getSubject(@PathVariable Long id){ return subjectService.findById(id); }
 
+    @GetMapping("/subjectsByGrade/{gradeID}")
+    public List<SubjectDTO> findSubjectsByGrade(@PathVariable Long gradeID){
+        return subjectService.findByGrade(gradeID);
+    }
+
+    @GetMapping("/subjectsByClass/{classID}")
+        public List<SubjectDTO> findSubjectsByClass(@PathVariable Long classID){
+        return classSubjectTeacherService.listSubjectsByClass(classID);
+    }
+
+    @GetMapping("/subjectsOfTeacher/{teacherID}")
+    public List<SubjectDTO> findSubjectsByTeacherID(@PathVariable Long teacherID){
+        return classSubjectTeacherService.listSubjectsByTeacher(teacherID);
+    }
+
     @PostMapping("/subjects")
-    public SubjectDTO createSubject(@RequestBody SubjectDTO dto){ return subjectService.create(dto); }
+    public SubjectDTO createSubject(@Valid @RequestBody SubjectDTO dto){ return subjectService.create(dto); }
 
     @PutMapping("/subjects/{id}")
-    public SubjectDTO updateSubject(@PathVariable Long id, @RequestBody SubjectDTO dto){ return subjectService.update(id,dto); }
+    public SubjectDTO updateSubject(@PathVariable Long id,@Valid @RequestBody SubjectDTO dto){ return subjectService.update(id,dto); }
 
     @DeleteMapping("/subjects/{id}")
     public ResponseEntity<?> deleteSubject(@PathVariable Long id){ subjectService.delete(id); return ResponseEntity.ok().build(); }
 
-    // Enroll / Unenroll
-    @PostMapping("/students/{studentId}/enroll/{subjectId}")
-    public EnrollmentDTO enroll(@PathVariable Long studentId, @PathVariable Long subjectId){
-        return enrollmentService.enroll(studentId, subjectId);
+
+    // ------------------ Schedules------------------
+    @GetMapping("/schedules")
+    public List<ScheduleDTO> allSchedules() {
+        return scheduleService.findAll();
     }
 
-    @DeleteMapping("/students/{studentId}/unenroll/{subjectId}")
-    public ResponseEntity<?> unenroll(@PathVariable Long studentId, @PathVariable Long subjectId){
-        enrollmentService.unenroll(studentId, subjectId);
+    @GetMapping("/schedules/{id}")
+    public ScheduleDTO getSchedule(@PathVariable Long id) {
+        return scheduleService.findById(id);
+    }
+
+    @PostMapping("/schedules")
+    public ScheduleDTO createSchedule(@Valid @RequestBody ScheduleDTO dto) {
+        return scheduleService.create(dto);
+    }
+
+    @PutMapping("/schedules/{id}")
+    public ScheduleDTO updateSchedule(@PathVariable Long id, @Valid @RequestBody ScheduleDTO dto) {
+        return scheduleService.update(id, dto);
+    }
+
+    @DeleteMapping("/schedules/{id}")
+    public ResponseEntity<?> deleteSchedule(@PathVariable Long id) {
+        scheduleService.delete(id);
         return ResponseEntity.ok().build();
     }
+
+
+    // ----------------Asssign subjects and choose teachers for class----------------
+    //find assignments
+    @GetMapping("/class-subject-teachers")
+    public List<ClassSubjectTeacherDTO> getAllAssignments() {
+        return classSubjectTeacherService.findAllAssignments();
+    }
+
+    @PostMapping("/class-subject-teachers")
+    public ResponseEntity<?> assign(
+            @RequestParam Long classId,
+            @RequestParam Long subjectId,
+            @RequestParam Long teacherId
+    ) {
+            classSubjectTeacherService.assignSubjectAndTeacherToClass(classId, subjectId, teacherId);
+            return ResponseEntity.ok("Subject assigned to class with teacher successfully");
+    }
+
+
+    @DeleteMapping("/class-subject-teachers")
+    public ResponseEntity<?> unassign(
+            @RequestParam Long classId,
+            @RequestParam Long subjectId,
+            @RequestParam Long teacherId
+    ) {
+            classSubjectTeacherService.unassign(classId, subjectId, teacherId);
+            return ResponseEntity.ok("Subject unassigned from class successfully");
+    }
+
+    //change teacher for class
+    @PutMapping("/classes/{classId}/subjects/{subjectId}/teachers/{teacherId}")
+    public ResponseEntity<String> changeTeacher(
+            @PathVariable Long classId,
+            @PathVariable Long subjectId,
+            @PathVariable Long teacherId) {
+
+        classSubjectTeacherService.changeTeacher(classId, subjectId, teacherId);
+        return ResponseEntity.ok("Teacher updated successfully for class " + classId + " and subject " + subjectId);
+    }
+
+
+    @GetMapping("/subjects/{subjectId}/teachers")
+    public ResponseEntity<?> listTeachersBySubject(@PathVariable Long subjectId) {
+        try {
+            List<TeacherDTO> list = classSubjectTeacherService.listTeachersBySubject(subjectId);
+            return ResponseEntity.ok(list);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(400).body(ex.getMessage());
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+        }
+    }
+
+
+    @GetMapping("/teachers/{teacherId}/subjects")
+    public ResponseEntity<?> listSubjectsByTeacher(@PathVariable Long teacherId) {
+        try {
+            List<SubjectDTO> list = classSubjectTeacherService.listSubjectsByTeacher(teacherId);
+            return ResponseEntity.ok(list);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(400).body(ex.getMessage());
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+        }
+    }
+
+    @GetMapping("/classes/{classId}/subjects")
+    public ResponseEntity<?> listSubjectsByClass(@PathVariable Long classId) {
+        try {
+            List<SubjectDTO> list = classSubjectTeacherService.listSubjectsByClass(classId);
+            return ResponseEntity.ok(list);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(400).body(ex.getMessage());
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+        }
+    }
+
+    @GetMapping("/countObjects")
+    public CountObjectResponse getDashboard() {
+        long students = studentService.countStudents();
+        long teachers = teacherService.countTeachers();
+        long subjects = subjectService.countSubjects();
+        long classes=classSubjectTeacherService.countClasses();
+        return new CountObjectResponse(students, teachers, subjects,classes);
+    }
+
+
 
     @PostMapping("/import/students")
     public ResponseEntity<?> importStudents(@RequestBody List<StudentDTO> dtos) {
@@ -240,48 +373,15 @@ public class AdminController {
                 .body(resource);
     }
 
-    //room
-    @GetMapping("/rooms")
-    public ResponseEntity<List<RoomDTO>> list() {
-        List<RoomDTO> list = roomService.listAll();
-        return ResponseEntity.ok(list);
+    @GetMapping("/classes")
+    public List<SchoolClassDTO> getClasses() {
+        return classSubjectTeacherService.findAllClasses();
     }
 
-
-    @GetMapping("/room/{id}")
-    public ResponseEntity<RoomDTO> get(@PathVariable Long id) {
-        return roomService.findDtoById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    @GetMapping("/grades")
+    public List<GradeDTO> getGrades() {
+        return classSubjectTeacherService.findAllGrades();
     }
-
-
-    @PostMapping("/rooms")
-    public ResponseEntity<RoomDTO> create(@Valid @RequestBody RoomDTO dto) {
-        RoomDTO created = roomService.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
-
-
-
-    @PutMapping("/room/{id}")
-    public ResponseEntity<RoomDTO> update(@PathVariable Long id, @Valid @RequestBody RoomDTO dto) {
-        try {
-            RoomDTO updated = roomService.update(id, dto);
-            return ResponseEntity.ok(updated);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-
-    @DeleteMapping("/room/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        roomService.delete(id);
-        return ResponseEntity.noContent().build();
-    }
-
-
 
 }
 

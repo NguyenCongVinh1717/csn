@@ -27,9 +27,6 @@ public class Teacher {
     private String email;
     private String phone;
 
-    @OneToMany(mappedBy = "teacher")
-    @JsonIgnore
-    private List<Subject> subjects;
 
 }
 

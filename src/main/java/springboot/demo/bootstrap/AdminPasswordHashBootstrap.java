@@ -18,13 +18,14 @@ public class AdminPasswordHashBootstrap implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminPasswordHashBootstrap.class);
 
-    private final UserRepository userRepo;      // sửa tên repo của bạn
+    private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.bootstrap.admin.username:admin}")
     private String adminUsername;
 
-    @Value("${app.bootstrap.admin.password:admin123}")
+    @Value("${app.bootstrap.admin.password:123456}")
+    //old password is admin123
     private String adminPasswordIfMissing;
 
     public AdminPasswordHashBootstrap(UserRepository userRepo, PasswordEncoder passwordEncoder) {

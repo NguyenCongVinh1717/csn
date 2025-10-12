@@ -1,6 +1,7 @@
 package springboot.demo.controller;
 
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
@@ -24,7 +25,7 @@ public class AuthController {
     private final UserRepository userRepo;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         Authentication auth;
         try {
             auth = authenticationManager.authenticate(

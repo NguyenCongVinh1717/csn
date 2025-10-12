@@ -1,68 +1,3 @@
-//package springboot.demo.service;
-//
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//import org.springframework.web.server.ResponseStatusException;
-//import org.springframework.http.HttpStatus;
-//import springboot.demo.dto.SubjectDTO;
-//import springboot.demo.dto.TeacherDTO;
-//import springboot.demo.entity.Teacher;
-//import springboot.demo.mapper.SubjectMapper;
-//import springboot.demo.mapper.TeacherMapper;
-//import springboot.demo.repository.SubjectRepository;
-//import springboot.demo.repository.TeacherRepository;
-//
-//import java.util.List;
-//import java.util.stream.Collectors;
-//
-//@Service
-//@RequiredArgsConstructor
-//@Transactional
-//public class TeacherService{
-//    private final TeacherRepository teacherRepo;
-//    private final SubjectRepository subjectRepo;
-//
-//
-//    public List<TeacherDTO> findAll() {
-//        return teacherRepo.findAll().stream().map(TeacherMapper::toDto).collect(Collectors.toList());
-//    }
-//
-//
-//    public TeacherDTO findById(Long id) {
-//        Teacher t = teacherRepo.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Teacher not found"));
-//        return TeacherMapper.toDto(t);
-//    }
-//
-//
-//    public TeacherDTO create(TeacherDTO dto) {
-//        Teacher t = TeacherMapper.toEntity(dto);
-//        Teacher saved = teacherRepo.save(t);
-//        return TeacherMapper.toDto(saved);
-//    }
-//
-//
-//    public TeacherDTO update(Long id, TeacherDTO dto) {
-//        Teacher exist = teacherRepo.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Teacher not found"));
-//        exist.setTeacherCode(dto.getTeacherCode());
-//        exist.setFullName(dto.getFullName());
-//        exist.setDob(dto.getDob());
-//        exist.setGender(dto.getGender());
-//        exist.setEmail(dto.getEmail());
-//        exist.setPhone(dto.getPhone());
-//        return TeacherMapper.toDto(teacherRepo.save(exist));
-//    }
-//
-//
-//    public void delete(Long id) { teacherRepo.deleteById(id); }
-//
-//
-//    public List<SubjectDTO> getSubjects(Long teacherId) {
-//        teacherRepo.findById(teacherId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Teacher not found"));
-//        return subjectRepo.findByTeacherId(teacherId).stream().map(SubjectMapper::toDto).collect(Collectors.toList());
-//    }
-//}
-//
 package springboot.demo.service;
 
 import lombok.RequiredArgsConstructor;
@@ -83,31 +18,31 @@ import springboot.demo.dto.StudentDTO;
 import springboot.demo.dto.SubjectDTO;
 import springboot.demo.dto.TeacherDTO;
 import springboot.demo.entity.AppUser;
-import springboot.demo.entity.Student;
+import springboot.demo.entity.Subject;
 import springboot.demo.entity.Teacher;
 import springboot.demo.mapper.StudentMapper;
 import springboot.demo.mapper.SubjectMapper;
 import springboot.demo.mapper.TeacherMapper;
 import springboot.demo.repository.SubjectRepository;
+import springboot.demo.repository.ClassSubjectTeacherRepository;
 import springboot.demo.repository.TeacherRepository;
 import springboot.demo.repository.UserRepository;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * TeacherService: CRUD cho Teacher.
- * Thêm phương thức createWithAccount(...) để tạo Teacher + tạo AppUser với mật khẩu mặc định "teach123".
- */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class TeacherService {
+
     private final TeacherRepository teacherRepo;
     private final SubjectRepository subjectRepo;
-
+    private final ClassSubjectTeacherRepository cstRepo;
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
 
@@ -117,79 +52,127 @@ public class TeacherService {
 
     public TeacherDTO findById(Long id) {
         Teacher t = teacherRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found id=" + id));
         return TeacherMapper.toDto(t);
     }
 
-
-    public TeacherDTO create(TeacherDTO dto) {
-        Teacher t = TeacherMapper.toEntity(dto);
-        Teacher saved = teacherRepo.save(t);
-        return TeacherMapper.toDto(saved);
+    //find teacher with name
+    public List<TeacherDTO> findTeacherByName(String name){
+        return teacherRepo.findTeacherByFullNameContainingIgnoreCase(name)
+                .stream()
+                .map(TeacherMapper::toDto)
+                .collect(Collectors.toList());
     }
-
 
     @Transactional
     public CreateResult createWithAccount(TeacherDTO dto) {
+        // check dupicate
+        if (teacherRepo.existsByTeacherCode(dto.getTeacherCode())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Teacher code already exists");
+        }
+
+        // create teacher
         Teacher t = TeacherMapper.toEntity(dto);
         Teacher saved = teacherRepo.save(t);
 
-        String username = saved.getTeacherCode();
+        // create account
         String initialPassword = null;
-
-        if (username != null && !username.isBlank()) {
-            boolean exists = userRepo.existsByUsername(username);
-            if (!exists) {
-                initialPassword = "teach123";
-                AppUser u = AppUser.builder()
-                        .username(username)
-                        .password(passwordEncoder.encode(initialPassword))
-                        .role("TEACHER")
-                        .teacherId(saved.getId())
-                        .build();
-                userRepo.save(u);
-            }
+        if (!userRepo.existsByUsername(dto.getTeacherCode())) {
+            initialPassword = "teach123";
+            AppUser u = AppUser.builder()
+                    .username(dto.getTeacherCode())
+                    .password(passwordEncoder.encode(initialPassword))
+                    .role("TEACHER")
+                    .teacherId(saved.getId())
+                    .build();
+            userRepo.save(u);
         }
 
         return new CreateResult(TeacherMapper.toDto(saved), initialPassword);
     }
 
+
+    @Transactional
     public TeacherDTO update(Long id, TeacherDTO dto) {
         Teacher exist = teacherRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
-        exist.setTeacherCode(dto.getTeacherCode());
+
+        String newCode = dto.getTeacherCode();
+
+        // check dupicate
+        if (!exist.getTeacherCode().equals(newCode) && teacherRepo.existsByTeacherCode(newCode)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Teacher code already exists");
+        }
+
+        // if changing teacherCode, also change in account
+        if (!exist.getTeacherCode().equals(newCode)) {
+            userRepo.findByTeacherId(id).ifPresent(user -> {
+                user.setUsername(newCode);
+                userRepo.save(user);
+            });
+        }
+
+        // update
+        exist.setTeacherCode(newCode);
         exist.setFullName(dto.getFullName());
         exist.setDob(dto.getDob());
         exist.setGender(dto.getGender());
         exist.setEmail(dto.getEmail());
         exist.setPhone(dto.getPhone());
-        return TeacherMapper.toDto(teacherRepo.save(exist));
+
+        Teacher updated = teacherRepo.save(exist);
+        return TeacherMapper.toDto(updated);
     }
 
+
+    @Transactional
     public void delete(Long id) {
         Teacher tc = teacherRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy student id=" + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Teacher not found id=" + id));
 
+        // if having in cst, throw
+        boolean assigned = cstRepo.existsByTeacher_Id(id);
+        if (assigned) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot delete teacher: they are currently assigned to classes. Reassign them first.");
+        }
+
+        // delete account
         userRepo.findByTeacherId(id).ifPresent(userRepo::delete);
 
+        //delete teacher
         teacherRepo.delete(tc);
     }
-    public List<SubjectDTO> getSubjects(Long teacherId) {
-        teacherRepo.findById(teacherId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
-        return subjectRepo.findByTeacherId(teacherId).stream().map(SubjectMapper::toDto).collect(Collectors.toList());
+
+//
+//    @Transactional(readOnly = true)
+//    public List<SubjectDTO> getSubjects(Long teacherId) {
+//        // Kiểm tra giáo viên tồn tại
+//        if (!teacherRepo.existsById(teacherId)) {
+//            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found id=" + teacherId);
+//        }
+//
+//        // Lấy danh sách môn distinct qua ClassSubjectTeacher
+//        List<Subject> subjects = cstRepo.findByTeacher_IdOrderByDayOfWeekAscPeriodAsc(teacherId);
+//        return subjects.stream()
+//                .map(SubjectMapper::toDto)
+//                .toList();
+//    }
+
+
+    //count teachers
+    public long countTeachers(){
+        return teacherRepo.count();
     }
+
+
 
     public int createBatchWithAccount(List<TeacherDTO> dtos) {
         int count = 0;
         for (TeacherDTO dto : dtos) {
-            if (dto.getTeacherCode() == null || dto.getTeacherCode().isBlank()
-                    || dto.getFullName() == null || dto.getFullName().isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "teacherCode and fullName required");
-            }
-            if (teacherRepo.existsByTeacherCode(dto.getTeacherCode())) {
-                continue;
-            }
+            if (teacherRepo.existsByTeacherCode(dto.getTeacherCode())) continue;
+
             Teacher t = TeacherMapper.toEntity(dto);
             Teacher saved = teacherRepo.save(t);
 
@@ -210,9 +193,9 @@ public class TeacherService {
         List<Teacher> teachers = teacherRepo.findAll();
 
         Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Students");
+        Sheet sheet = workbook.createSheet("Teachers");
         Row header = sheet.createRow(0);
-        header.createCell(0).setCellValue("Student Code");
+        header.createCell(0).setCellValue("Teacher Code");
         header.createCell(1).setCellValue("Full Name");
         header.createCell(2).setCellValue("DOB");
         header.createCell(3).setCellValue("Gender");
@@ -222,8 +205,8 @@ public class TeacherService {
         int rowIdx = 1;
         for (Teacher s : teachers) {
             Row row = sheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(s.getTeacherCode());
-            row.createCell(1).setCellValue(s.getFullName());
+            row.createCell(0).setCellValue(s.getTeacherCode() != null ? s.getTeacherCode() : "");
+            row.createCell(1).setCellValue(s.getFullName() != null ? s.getFullName() : "");
             row.createCell(2).setCellValue(s.getDob() != null ? s.getDob().toString() : "");
             row.createCell(3).setCellValue(s.getGender() != null ? s.getGender() : "");
             row.createCell(4).setCellValue(s.getEmail() != null ? s.getEmail() : "");
@@ -239,16 +222,6 @@ public class TeacherService {
 
     @Transactional
     public void changePassword(ChangePasswordRequest req) {
-        if (req.getNewPassword() == null || req.getNewPassword().length() < 8) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be at least 8 characters");
-        }
-        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password and confirm password do not match");
-        }
-        if (req.getOldPassword() == null || req.getOldPassword().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is required");
-        }
-
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
@@ -266,10 +239,14 @@ public class TeacherService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from old password");
         }
 
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password and confirm password do not match");
+        }
+
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepo.save(user);
-
     }
+
 
     public static class CreateResult {
         private final TeacherDTO teacher;

@@ -26,40 +26,30 @@ public class EnrollmentService{
     private final SubjectRepository subjectRepo;
 
 
-    public EnrollmentDTO enroll(Long studentId, Long subjectId) {
-        Student s = studentRepo.findById(studentId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Student not found"));
-        Subject sub = subjectRepo.findById(subjectId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Subject not found"));
-        Enrollment exist = enrollmentRepo.findByStudentIdAndSubjectId(studentId, subjectId);
-        if (exist != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Student already enrolled");
-        Enrollment e = Enrollment.builder().student(s).subject(sub).grade(null).build();
-        Enrollment saved = enrollmentRepo.save(e);
-        return EnrollmentMapper.toDto(saved);
-    }
+    @Transactional
+    public EnrollmentDTO setGrade(Long studentId, Long cstId, Double grade) {
+        Enrollment e = enrollmentRepo
+                .findByStudent_IdAndClassSubjectTeacher_Id(studentId, cstId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
 
-
-    public void unenroll(Long studentId, Long subjectId) {
-        Enrollment e = enrollmentRepo.findByStudentIdAndSubjectId(studentId, subjectId);
-        if (e == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Enrollment not found");
-        enrollmentRepo.delete(e);
-    }
-
-
-    public EnrollmentDTO setGrade(Long studentId, Long subjectId, Double grade) {
-        Enrollment e = enrollmentRepo.findByStudentIdAndSubjectId(studentId, subjectId);
-        if (e == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Enrollment not found");
         e.setGrade(grade);
         Enrollment saved = enrollmentRepo.save(e);
         return EnrollmentMapper.toDto(saved);
     }
 
 
+
+
     public List<EnrollmentDTO> findByStudent(Long studentId) {
         return enrollmentRepo.findByStudentId(studentId).stream().map(EnrollmentMapper::toDto).collect(Collectors.toList());
     }
 
-
     public List<EnrollmentDTO> findBySubject(Long subjectId) {
-        return enrollmentRepo.findBySubjectId(subjectId).stream().map(EnrollmentMapper::toDto).collect(Collectors.toList());
+        return enrollmentRepo.findAllByClassSubjectTeacher_Subject_Id(subjectId)
+                .stream()
+                .map(EnrollmentMapper::toDto)
+                .collect(Collectors.toList());
     }
+
 }
 

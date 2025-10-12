@@ -23,12 +23,14 @@ public class Subject {
 
     private Integer credit;
 
-    @ManyToOne
-    @JoinColumn(name = "teacher_id")
-    private Teacher teacher;
 
     @OneToMany(mappedBy = "subject", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
-    private List<Enrollment> enrollments;
+    private List<ClassSubjectTeacher> classSubjectTeachers;
+
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "grade_id", nullable = false)
+    private Grade grade;
 }
 

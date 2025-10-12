@@ -31,5 +31,9 @@ public class Student {
     @JsonIgnore
     private List<Enrollment> enrollments;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "class_id", nullable = false)
+    private SchoolClass schoolClass;
+
 }
 
