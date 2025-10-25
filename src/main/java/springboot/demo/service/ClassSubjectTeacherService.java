@@ -150,6 +150,43 @@ public class ClassSubjectTeacherService {
                 .collect(Collectors.toList());
     }
 
+    public List<ClassSubjectTeacherDTO> listClassesBySubjectId(Long subjectId) {
+        subjectRepo.findById(subjectId)
+                .orElseThrow(() -> new IllegalArgumentException("Subject not found id=" + subjectId));
+
+        List<ClassSubjectTeacher> list = cstRepo.findBySubject_Id(subjectId);
+
+        return list.stream()
+                .map(cst -> ClassSubjectTeacherDTO.builder()
+                        .id(cst.getId())
+                        .classId(cst.getSchoolClass().getId())
+                        .className(cst.getSchoolClass().getName())
+                        .subjectId(cst.getSubject().getId())
+                        .subjectName(cst.getSubject().getName())
+                        .teacherId(cst.getTeacher().getId())
+                        .teacherName(cst.getTeacher().getFullName())
+                        .build())
+                .toList();
+    }
+
+
+    public List<ClassSubjectTeacherDTO> listByClassId(Long classId) {
+        List<ClassSubjectTeacher> list = cstRepo.findBySchoolClass_Id(classId);
+
+        return list.stream()
+                .map(cst -> ClassSubjectTeacherDTO.builder()
+                        .id(cst.getId())
+                        .classId(cst.getSchoolClass().getId())
+                        .className(cst.getSchoolClass().getName())
+                        .subjectId(cst.getSubject().getId())
+                        .subjectName(cst.getSubject().getName())
+                        .teacherId(cst.getTeacher().getId())
+                        .teacherName(cst.getTeacher().getFullName())
+                        .build())
+                .toList();
+    }
+
+
 
     @Transactional(readOnly = true)
     public List<ClassSubjectTeacherDTO> findAllAssignments() {
@@ -165,6 +202,7 @@ public class ClassSubjectTeacherService {
                         .build())
                 .collect(Collectors.toList());
     }
+
 
 
 

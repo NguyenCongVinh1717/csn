@@ -120,6 +120,11 @@ public class AdminController {
     @GetMapping("/students")
     public List<StudentDTO> allStudents(){ return studentService.findAll(); }
 
+    @GetMapping("/students/{id}")
+    public StudentDTO findStudentByID(@PathVariable Long id){
+        return studentService.findById(id);
+    }
+
     @GetMapping("/studentsWithSubjectAnhGrade/{id}")
     public List<EnrollmentDTO> getStudent(@PathVariable Long id){ return enrollmentService.findByStudent(id); }
 
@@ -151,6 +156,17 @@ public class AdminController {
 
     @DeleteMapping("/students/{id}")
     public ResponseEntity<?> deleteStudent(@PathVariable Long id){ studentService.delete(id); return ResponseEntity.ok().build(); }
+
+    //enroll/unenroll
+    @PostMapping("/students/{studentId}/CST/{cstId}")
+    public EnrollmentDTO enroll(@PathVariable Long studentId,@PathVariable Long cstId){
+        return enrollmentService.enroll(studentId,cstId);
+    }
+
+    @DeleteMapping("/students/{studentId}/CST/{cstId}")
+    public EnrollmentDTO unenroll(@PathVariable Long studentId, @PathVariable Long cstId){
+        return enrollmentService.unenroll(studentId,cstId);
+    }
 
     // Teachers
     @GetMapping("/teachers")
@@ -214,7 +230,7 @@ public class AdminController {
     public ResponseEntity<?> deleteSubject(@PathVariable Long id){ subjectService.delete(id); return ResponseEntity.ok().build(); }
 
 
-    // ------------------ Schedules------------------
+    //Schedules
     @GetMapping("/schedules")
     public List<ScheduleDTO> allSchedules() {
         return scheduleService.findAll();
@@ -241,8 +257,19 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/schedulesByClass/{classID}")
+    public List<ScheduleDTO> findSchedulesByClassID(@PathVariable Long classID){
+        return scheduleService.findByClassId(classID);
+    }
 
-    // ----------------Asssign subjects and choose teachers for class----------------
+    @GetMapping("/schedulesByTeacher/{teacherID}")
+    public List<ScheduleDTO> findSchedulesByTeacherID(@PathVariable Long teacherID){
+        return scheduleService.findByTeacherId(teacherID);
+    }
+
+
+
+    //Asssign subjects and choose teachers for class
     //find assignments
     @GetMapping("/class-subject-teachers")
     public List<ClassSubjectTeacherDTO> getAllAssignments() {
@@ -318,6 +345,17 @@ public class AdminController {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
         }
     }
+
+    @GetMapping("/classes/{classId}/csts")
+    public ResponseEntity<?> listCSTsByClass(@PathVariable Long classId) {
+        try {
+            List<ClassSubjectTeacherDTO> list = classSubjectTeacherService.listByClassId(classId);
+            return ResponseEntity.ok(list);
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
 
     @GetMapping("/countObjects")
     public CountObjectResponse getDashboard() {

@@ -27,7 +27,7 @@ public class SubjectService {
     private final ClassSubjectTeacherRepository cstRepo;
     private final EnrollmentRepository enrollmentRepo;
 
-    // ------------------ FIND ALL ------------------
+    // FIND ALL
     @Transactional(readOnly = true)
     public List<SubjectDTO> findAll() {
        return subjectRepo.findAll()
@@ -38,7 +38,7 @@ public class SubjectService {
 
 
 
-    // ------------------ FIND BY ID ------------------
+    //  FIND BY ID
     @Transactional(readOnly = true)
     public SubjectDTO findById(Long id) {
         Subject s = subjectRepo.findById(id)
@@ -55,7 +55,7 @@ public class SubjectService {
                 .collect(Collectors.toList());
     }
 
-    // ------------------ CREATE ------------------
+    // CREATE
     public SubjectDTO create(SubjectDTO dto) {
         Grade grade = gradeRepo.findById(dto.getGradeId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Grade not found id=" + dto.getGradeId()));
@@ -71,7 +71,7 @@ public class SubjectService {
         return SubjectMapper.toDto(saved);
     }
 
-    // ------------------ UPDATE ------------------
+    // UPDATE
     @Transactional
     public SubjectDTO update(Long id, SubjectDTO dto) {
         Subject exist = subjectRepo.findById(id)
@@ -108,7 +108,7 @@ public class SubjectService {
     }
 
 
-    // ------------------ DELETE ------------------
+    //  DELETE
     @Transactional
     public void delete(Long id) {
         Subject subject = subjectRepo.findById(id)
@@ -137,7 +137,7 @@ public class SubjectService {
     }
 
 
-    // ------------------ BATCH CREATE ------------------
+    //  BATCH CREATE
     public int createBatch(List<SubjectDTO> dtos) {
         int count = 0;
         for (SubjectDTO dto : dtos) {

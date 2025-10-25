@@ -18,4 +18,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     Optional<Enrollment> findByStudent_IdAndClassSubjectTeacher_Id(Long studentId, Long cstId);
 
     List<Enrollment> findAllByClassSubjectTeacher_Subject_Id(Long subjectId);
+
+    boolean existsByStudent_IdAndClassSubjectTeacher_Id(Long studentId, Long cstId);
+
+    List<Enrollment> findByStudent_SchoolClass_IdAndClassSubjectTeacher_Subject_Id(Long classId, Long subjectId);
 }

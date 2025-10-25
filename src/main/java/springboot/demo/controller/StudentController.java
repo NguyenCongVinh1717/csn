@@ -39,6 +39,6 @@ public class StudentController {
 
     @GetMapping("/students/{classId}/schedules")
     public List<ScheduleDTO> getStudentSchedules(@PathVariable Long classId) {
-        return scheduleService.findByStudentClass(classId);
+        return scheduleService.findByClassId(classId);
     }
 }

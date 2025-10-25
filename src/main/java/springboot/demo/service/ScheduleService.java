@@ -122,7 +122,7 @@ public class ScheduleService {
 
 
     @Transactional(readOnly = true)
-    public List<ScheduleDTO> findByStudentClass(Long classId) {
+    public List<ScheduleDTO> findByClassId(Long classId) {
         List<Schedule> schedules = scheduleRepo.findByClassSubjectTeacher_SchoolClass_Id(classId);
         return schedules.stream()
                 .map(ScheduleMapper::toDTO)

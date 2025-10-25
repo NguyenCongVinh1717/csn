@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import springboot.demo.dto.*;
-import springboot.demo.service.EnrollmentService;
-import springboot.demo.service.ScheduleService;
-import springboot.demo.service.SubjectService;
-import springboot.demo.service.TeacherService;
+import springboot.demo.service.*;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +17,8 @@ public class TeacherController {
     private final TeacherService teacherService;
     private final EnrollmentService enrollmentService;
     private final ScheduleService scheduleService;
+    private final ClassSubjectTeacherService classSubjectTeacherService;
+    private final StudentService studentService;
 
     @GetMapping("/{id}")
     public TeacherDTO profile(@PathVariable Long id){ return teacherService.findById(id); }
@@ -34,6 +33,28 @@ public class TeacherController {
         return enrollmentService.setGrade(studentId, cstId, grade);
     }
     //need a function for deleting grade.
+
+
+    @GetMapping("/classesOfSubject/{subjectId}")
+    public List<ClassSubjectTeacherDTO> getClassesBySubject(@PathVariable Long subjectId){
+        return classSubjectTeacherService.listClassesBySubjectId(subjectId);
+    }
+    @GetMapping("/studentsOfClass/{classId}")
+    public List<StudentDTO> getStudentsOfClass(@PathVariable Long classId){
+        return studentService.findByClass(classId);
+    }
+
+    @GetMapping("/class/{classId}/subject/{subjectId}/students")
+    public List<EnrollmentDTO> getStudentsByClassAndSubject(
+            @PathVariable Long classId,
+            @PathVariable Long subjectId) {
+        return enrollmentService.findByClassAndSubject(classId, subjectId);
+    }
+
+    @GetMapping("/subjectsOfTeacher/{teacherId}")
+    public List<SubjectDTO> getSubjectsByTeacher(@PathVariable Long teacherId){
+        return classSubjectTeacherService.listSubjectsByTeacher(teacherId);
+    }
 
 
     @PostMapping("/change-password")

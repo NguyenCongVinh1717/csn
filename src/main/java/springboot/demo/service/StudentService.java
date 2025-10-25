@@ -68,7 +68,7 @@ public class StudentService {
                 .collect(Collectors.toList());
     }
 
-    // ------------------------ CREATE WITH ACCOUNT ------------------------
+    // CREATE WITH ACCOUNT
     @Transactional
     public CreateResult createWithAccount(StudentDTO dto) {
         // check class exist
@@ -119,13 +119,13 @@ public class StudentService {
     }
 
 
-    // ------------------------ UPDATE ------------------------
+    // UPDATE
     @Transactional
     public StudentDTO update(Long id, StudentDTO dto) {
         Student exist = studentRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
 
-        // check dupicate studentCode
+        // check duplicate studentCode
         if (!exist.getStudentCode().equals(dto.getStudentCode())
                 && studentRepo.existsByStudentCode(dto.getStudentCode())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Student code already exists");
@@ -136,27 +136,21 @@ public class StudentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Class not found id=" + dto.getClassId()));
 
-        //No updating class if having enrollments
+        // check if class changed
         Long oldClassId = exist.getSchoolClass() != null ? exist.getSchoolClass().getId() : null;
         Long newClassId = dto.getClassId();
 
-        boolean classChanged;
-        if (oldClassId == null) {
-            classChanged = newClassId != null;
-        } else {
-            classChanged = !oldClassId.equals(newClassId);
+        boolean classChanged = (oldClassId == null && newClassId != null)
+                || (oldClassId != null && !oldClassId.equals(newClassId));
+
+        // prevent changing class if student already has enrollments
+        if (classChanged && enrollmentRepo.existsByStudent_Id(id)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot change class because student has enrollments");
         }
 
-        if (classChanged) {
-            if (enrollmentRepo.existsByStudent_Id(id)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot change class because student has enrollments");
-            }
-        }
-
-        //If changing studentCode, also change in account
+        // If changing studentCode, also change in account
         if (!exist.getStudentCode().equals(dto.getStudentCode())) {
-            // check dupicate
             if (userRepo.existsByUsername(dto.getStudentCode())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Account username already exists");
             }
@@ -167,7 +161,7 @@ public class StudentService {
             });
         }
 
-        // update
+        // Update student info
         exist.setStudentCode(dto.getStudentCode());
         exist.setFullName(dto.getFullName());
         exist.setDob(dto.getDob());
@@ -177,11 +171,28 @@ public class StudentService {
         exist.setSchoolClass(sc);
 
         Student updated = studentRepo.save(exist);
+
+        // if changing class, enroll for student the subjects of new class
+        if (classChanged) {
+            List<ClassSubjectTeacher> classSubjects = cstRepo.findBySchoolClassId(newClassId);
+            if (!classSubjects.isEmpty()) {
+                List<Enrollment> enrollments = new ArrayList<>();
+                for (ClassSubjectTeacher cst : classSubjects) {
+                    enrollments.add(Enrollment.builder()
+                            .student(updated)
+                            .classSubjectTeacher(cst)
+                            .grade(null)
+                            .build());
+                }
+                enrollmentRepo.saveAll(enrollments);
+            }
+        }
+
         return StudentMapper.toDto(updated);
     }
 
 
-    // ------------------------ DELETE ------------------------
+    //DELETE
     @Transactional
     public void delete(Long id) {
         // check exist
@@ -202,7 +213,7 @@ public class StudentService {
     }
 
 
-    // ------------------------ ENROLLMENTS ------------------------
+    //ENROLLMENTS
     public List<EnrollmentDTO> getEnrollments(Long studentId) {
         studentRepo.findById(studentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
@@ -218,12 +229,19 @@ public class StudentService {
         return studentRepo.count();
     }
 
-    // ------------------------ BATCH CREATE ------------------------
+    // BATCH CREATE
     public int createBatchWithAccount(List<StudentDTO> dtos) {
         int created = 0;
         for (StudentDTO dto : dtos) {
             if (dto == null || dto.getStudentCode() == null || dto.getFullName() == null || dto.getClassId() == null)
                 continue;
+
+            if (dto.getClassId() == null && dto.getClassName() != null) {
+                SchoolClass found = classRepo.findByName(dto.getClassName()).orElse(null);
+                if (found != null) dto.setClassId(found.getId());
+            }
+
+            if (dto.getClassId() == null) continue;
 
             if (studentRepo.existsByStudentCode(dto.getStudentCode()))
                 continue;
@@ -248,7 +266,7 @@ public class StudentService {
         return created;
     }
 
-    // ------------------------ EXPORT TO EXCEL ------------------------
+    //EXPORT TO EXCEL
     public ByteArrayResource exportStudentsToExcel() throws IOException {
         List<Student> students = studentRepo.findAll();
         Workbook workbook = new XSSFWorkbook();
@@ -260,9 +278,7 @@ public class StudentService {
         header.createCell(3).setCellValue("Gender");
         header.createCell(4).setCellValue("Email");
         header.createCell(5).setCellValue("Phone");
-        header.createCell(6).setCellValue("Class Code");
-        header.createCell(7).setCellValue("Class Name");
-        header.createCell(8).setCellValue("Grade");
+        header.createCell(6).setCellValue("Class Name");
 
         int rowIdx = 1;
         for (Student s : students) {
@@ -274,9 +290,7 @@ public class StudentService {
             row.createCell(4).setCellValue(s.getEmail() != null ? s.getEmail() : "");
             row.createCell(5).setCellValue(s.getPhone() != null ? s.getPhone() : "");
             if (s.getSchoolClass() != null) {
-                row.createCell(6).setCellValue(s.getSchoolClass().getClassCode() != null ? s.getSchoolClass().getClassCode() : "");
-                row.createCell(7).setCellValue(s.getSchoolClass().getName() != null ? s.getSchoolClass().getName() : "");
-                row.createCell(8).setCellValue(s.getSchoolClass().getGrade() != null ? s.getSchoolClass().getGrade().getName() : "");
+                row.createCell(6).setCellValue(s.getSchoolClass().getClassCode() != null ? s.getSchoolClass().getName() : "");
             }
         }
 
@@ -286,7 +300,7 @@ public class StudentService {
         return new ByteArrayResource(out.toByteArray());
     }
 
-    // ------------------------ CHANGE PASSWORD ------------------------
+    // CHANGE PASSWORD
     @Transactional
     public void changePassword(ChangePasswordRequest req) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -311,7 +325,7 @@ public class StudentService {
         userRepo.save(user);
     }
 
-    // ------------------------ INNER CLASS ------------------------
+    // INNER CLASS
     public static class CreateResult {
         private final StudentDTO student;
         private final String initialPassword;

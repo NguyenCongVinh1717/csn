@@ -7,7 +7,7 @@ import lombok.*;
 @Table(
         name = "enrollments",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"student_id", "class_subject_teacher_id"})
+                @UniqueConstraint(columnNames = {"student_id", "class_teacher_subject_id"})
         }
 )
 @Data

@@ -10,11 +10,15 @@ public class EnrollmentMapper {
         Long studentId = e.getStudent()!=null ? e.getStudent().getId() : null;
         String studentName = e.getStudent()!=null ? e.getStudent().getFullName() : null;
         Long classSubjectTeacherId = e.getClassSubjectTeacher()!=null ? e.getClassSubjectTeacher().getId() : null;
+        String teacherName=e.getClassSubjectTeacher()!=null ? e.getClassSubjectTeacher().getTeacher().getFullName() : null;
+        String subjectName=e.getClassSubjectTeacher()!=null ? e.getClassSubjectTeacher().getSubject().getName() : null;
         return EnrollmentDTO.builder()
                 .id(e.getId())
                 .studentId(studentId)
                 .studentName(studentName)
                 .classSubjectTeacherId(classSubjectTeacherId)
+                .subjectName(subjectName)
+                .teacherName(teacherName)
                 .grade(e.getGrade())
                 .build();
     }
