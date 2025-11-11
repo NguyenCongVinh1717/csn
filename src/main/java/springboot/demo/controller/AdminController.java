@@ -93,6 +93,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import springboot.demo.dto.*;
@@ -107,6 +108,7 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @CrossOrigin
 @RequiredArgsConstructor
+@Validated
 public class AdminController {
     private final StudentService studentService;
     private final TeacherService teacherService;
@@ -369,21 +371,21 @@ public class AdminController {
 
 
     @PostMapping("/import/students")
-    public ResponseEntity<?> importStudents(@RequestBody List<StudentDTO> dtos) {
+    public ResponseEntity<?> importStudents(@RequestBody List<@Valid StudentDTO> dtos) {
         if (dtos.size() > 50) return ResponseEntity.badRequest().body("Max 50 records allowed");
         int created = studentService.createBatchWithAccount(dtos);
         return ResponseEntity.ok(Map.of("created", created));
     }
 
     @PostMapping("/import/teachers")
-    public ResponseEntity<?> importTeachers(@RequestBody List<TeacherDTO> dtos) {
+    public ResponseEntity<?> importTeachers(@RequestBody List<@Valid TeacherDTO> dtos) {
         if (dtos.size() > 50) return ResponseEntity.badRequest().body("Max 50 records allowed");
         int created = teacherService.createBatchWithAccount(dtos);
         return ResponseEntity.ok(Map.of("created", created));
     }
 
     @PostMapping("/import/subjects")
-    public ResponseEntity<?> importSubjects(@RequestBody List<SubjectDTO> dtos) {
+    public ResponseEntity<?> importSubjects(@RequestBody List<@Valid SubjectDTO> dtos) {
         if (dtos.size() > 50) return ResponseEntity.badRequest().body("Max 50 records allowed");
         int created = subjectService.createBatch(dtos);
         return ResponseEntity.ok(Map.of("created", created));

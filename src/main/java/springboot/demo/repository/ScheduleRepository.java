@@ -21,4 +21,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findByClassSubjectTeacher_SchoolClass_Id(Long classId);
     List<Schedule> findByClassSubjectTeacher_Teacher_Id(Long teacherId);
+
+    boolean existsByClassSubjectTeacher_Id(Long id);
 }

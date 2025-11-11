@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(
@@ -35,5 +37,13 @@ public class ClassSubjectTeacher {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "teacher_id", nullable = false)
     private Teacher teacher;
+
+    @OneToMany(
+            mappedBy = "classSubjectTeacher",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<Enrollment> enrollments = new ArrayList<>();
+
 
 }

@@ -14,24 +14,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import springboot.demo.dto.ChangePasswordRequest;
-import springboot.demo.dto.StudentDTO;
-import springboot.demo.dto.SubjectDTO;
 import springboot.demo.dto.TeacherDTO;
 import springboot.demo.entity.AppUser;
-import springboot.demo.entity.Subject;
 import springboot.demo.entity.Teacher;
-import springboot.demo.mapper.StudentMapper;
-import springboot.demo.mapper.SubjectMapper;
 import springboot.demo.mapper.TeacherMapper;
 import springboot.demo.repository.SubjectRepository;
 import springboot.demo.repository.ClassSubjectTeacherRepository;
 import springboot.demo.repository.TeacherRepository;
 import springboot.demo.repository.UserRepository;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -52,7 +44,7 @@ public class TeacherService {
 
     public TeacherDTO findById(Long id) {
         Teacher t = teacherRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found id=" + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giáo viên id=" + id));
         return TeacherMapper.toDto(t);
     }
 
@@ -68,7 +60,7 @@ public class TeacherService {
     public CreateResult createWithAccount(TeacherDTO dto) {
         // check dupicate
         if (teacherRepo.existsByTeacherCode(dto.getTeacherCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Teacher code already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã giáo viên đã tồn tại");
         }
 
         // create teacher
@@ -95,13 +87,13 @@ public class TeacherService {
     @Transactional
     public TeacherDTO update(Long id, TeacherDTO dto) {
         Teacher exist = teacherRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giáo viên"));
 
         String newCode = dto.getTeacherCode();
 
         // check dupicate
         if (!exist.getTeacherCode().equals(newCode) && teacherRepo.existsByTeacherCode(newCode)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Teacher code already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã giáo viên đã tồn tại");
         }
 
         // if changing teacherCode, also change in account
@@ -129,13 +121,13 @@ public class TeacherService {
     public void delete(Long id) {
         Teacher tc = teacherRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Teacher not found id=" + id));
+                        "Không tìm thấy giáo viên id=" + id));
 
         // if having in cst, throw
         boolean assigned = cstRepo.existsByTeacher_Id(id);
         if (assigned) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Cannot delete teacher: they are currently assigned to classes. Reassign them first.");
+                    "Không thể xoá giáo viên vì họ đang dạy, hãy huỷ gán trươc");
         }
 
         // delete account
@@ -167,23 +159,31 @@ public class TeacherService {
     }
 
 
-
+    @Transactional
     public int createBatchWithAccount(List<TeacherDTO> dtos) {
         int count = 0;
         for (TeacherDTO dto : dtos) {
-            if (teacherRepo.existsByTeacherCode(dto.getTeacherCode())) continue;
+            if (teacherRepo.existsByTeacherCode(dto.getTeacherCode())){
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Mã giáo viên đã tồn tại: " + dto.getTeacherCode()
+                );
+            }
 
             Teacher t = TeacherMapper.toEntity(dto);
             Teacher saved = teacherRepo.save(t);
 
-            if (!userRepo.existsByUsername(saved.getTeacherCode())) {
+            if(userRepo.existsByUsername(saved.getTeacherCode())){
+                throw new ResponseStatusException
+                        (HttpStatus.CONFLICT,"Tài khoản giáo viên đã tồn tại: "+saved.getTeacherCode());
+            }
+
                 AppUser u = new AppUser();
                 u.setUsername(saved.getTeacherCode());
                 u.setPassword(passwordEncoder.encode("teach123"));
                 u.setRole("TEACHER");
                 u.setTeacherId(saved.getId());
                 userRepo.save(u);
-            }
             count++;
         }
         return count;
@@ -195,12 +195,12 @@ public class TeacherService {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Teachers");
         Row header = sheet.createRow(0);
-        header.createCell(0).setCellValue("Teacher Code");
-        header.createCell(1).setCellValue("Full Name");
-        header.createCell(2).setCellValue("DOB");
-        header.createCell(3).setCellValue("Gender");
+        header.createCell(0).setCellValue("Mã giáo viên");
+        header.createCell(1).setCellValue("Họ tên");
+        header.createCell(2).setCellValue("Ngày sinh");
+        header.createCell(3).setCellValue("Giới tính");
         header.createCell(4).setCellValue("Email");
-        header.createCell(5).setCellValue("Phone");
+        header.createCell(5).setCellValue("Số diện thoại");
 
         int rowIdx = 1;
         for (Teacher s : teachers) {
@@ -229,18 +229,18 @@ public class TeacherService {
         String username = auth.getName();
 
         AppUser user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
 
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu cũ không đúng");
         }
 
         if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from old password");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu cũ");
         }
 
         if (!req.getNewPassword().equals(req.getConfirmPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password and confirm password do not match");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới và xác nhận mật khẩu không trùng");
         }
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));

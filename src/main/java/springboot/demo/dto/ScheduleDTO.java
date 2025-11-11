@@ -10,16 +10,16 @@ import lombok.*;
 public class ScheduleDTO {
     private Long id;
 
-    @NotNull(message = "Day of week is required")
-    @Min(value = 1, message = "Day of week must be between 1 and 7")
-    @Max(value = 7, message = "Day of week must be between 1 and 7")
+    @NotNull(message = "Thứ phải bắt buộc")
+    @Min(value = 2, message = "Thứ phải từ 2-7")
+    @Max(value = 7, message = "Thứ phải từ 2-7")
     private Integer dayOfWeek;
 
-    @NotNull(message = "Period is required")
-    @Min(value = 1, message = "Period must be at least 1")
+    @NotNull(message = "Tiết bắt buộc")
+    @Min(value = 1, message = "Tiết bắt đầu từ 1")
     private Integer period;
 
-    @NotNull(message = "ClassSubjectTeacher ID must not be null")
+    @NotNull(message = "CST bắt buộc")
     private Long classSubjectTeacherId;
 
     // Optional

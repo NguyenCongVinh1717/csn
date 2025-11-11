@@ -1,21 +1,25 @@
 package springboot.demo.service;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import springboot.demo.dto.EnrollmentDTO;
-import springboot.demo.entity.ClassSubjectTeacher;
-import springboot.demo.entity.Enrollment;
-import springboot.demo.entity.Student;
-import springboot.demo.entity.Subject;
+import springboot.demo.entity.*;
 import springboot.demo.mapper.EnrollmentMapper;
 import springboot.demo.repository.ClassSubjectTeacherRepository;
 import springboot.demo.repository.EnrollmentRepository;
 import springboot.demo.repository.StudentRepository;
 import springboot.demo.repository.SubjectRepository;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,7 +36,7 @@ public class EnrollmentService{
     public EnrollmentDTO setGrade(Long studentId, Long cstId, Double grade) {
         Enrollment e = enrollmentRepo
                 .findByStudent_IdAndClassSubjectTeacher_Id(studentId, cstId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bản đăng ký"));
 
         e.setGrade(grade);
         Enrollment saved = enrollmentRepo.save(e);
@@ -41,16 +45,16 @@ public class EnrollmentService{
 
     public EnrollmentDTO enroll(Long studentId, Long cstId) {
         Student student = studentRepo.findById(studentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy học sinh"));
         ClassSubjectTeacher cst = cstRepo.findById(cstId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CST not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy CST"));
 
         if (!student.getSchoolClass().getId().equals(cst.getSchoolClass().getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This subject is not for your class");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Môn học này không dành cho lớp của bạn");
         }
 
         if (enrollmentRepo.existsByStudent_IdAndClassSubjectTeacher_Id(studentId, cstId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Student already enrolled");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Học sinh đã đăng ký môn học này");
         }
 
         Enrollment enrollment = new Enrollment();
@@ -62,7 +66,7 @@ public class EnrollmentService{
 
     public EnrollmentDTO unenroll(Long studentId, Long cstId) {
         Enrollment enrollment = enrollmentRepo.findByStudent_IdAndClassSubjectTeacher_Id(studentId, cstId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bản đăng ký"));
 
         enrollmentRepo.delete(enrollment);
         return EnrollmentMapper.toDto(enrollment);
@@ -89,5 +93,31 @@ public class EnrollmentService{
                 .toList();
     }
 
+    public ByteArrayResource exportCSTsToExcel(Long cstId) throws IOException {
+        List<Enrollment> grades = enrollmentRepo.findAllByClassSubjectTeacherId(cstId);
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Grades");
+        Row header = sheet.createRow(0);
+        header.createCell(0).setCellValue("Mã HS");
+        header.createCell(1).setCellValue("Họ tên");
+        header.createCell(2).setCellValue("Điểm");
+        int rowIdx = 1;
+        for (Enrollment e : grades) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(e.getStudent().getStudentCode() != null ? e.getStudent().getStudentCode() : "");
+            row.createCell(1).setCellValue(e.getStudent().getFullName() != null ? e.getStudent().getFullName() : "");
+            if (e.getGrade() != null) {
+                row.createCell(2).setCellValue(e.getGrade().doubleValue());
+            } else {
+                row.createCell(2).setCellValue("");
+            }
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        workbook.write(out);
+        workbook.close();
+
+        return new ByteArrayResource(out.toByteArray());
+    }
 }
 

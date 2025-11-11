@@ -31,5 +31,7 @@ public interface ClassSubjectTeacherRepository extends JpaRepository<ClassSubjec
 
     List<ClassSubjectTeacher> findBySchoolClassId(@NotNull(message = "classId is required") Long classId);
 
-    List<ClassSubjectTeacher> findBySubject_Id(Long subjectId);
+    //List<ClassSubjectTeacher> findBySubject_Id(Long subjectId);
+
+    List<ClassSubjectTeacher> findBySubject_IdAndTeacher_Id(Long subjectId, Long teacherId);
 }

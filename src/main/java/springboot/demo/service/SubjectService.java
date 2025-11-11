@@ -42,7 +42,7 @@ public class SubjectService {
     @Transactional(readOnly = true)
     public SubjectDTO findById(Long id) {
         Subject s = subjectRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found id=" + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy môn học id=" + id));
         return SubjectMapper.toDto(s);
     }
 
@@ -58,10 +58,10 @@ public class SubjectService {
     // CREATE
     public SubjectDTO create(SubjectDTO dto) {
         Grade grade = gradeRepo.findById(dto.getGradeId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Grade not found id=" + dto.getGradeId()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy khối id=" + dto.getGradeId()));
 
         if (subjectRepo.existsByCode(dto.getCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Subject code already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã môn học đã tồn tại");
         }
 
         Subject subject = SubjectMapper.toEntity(dto);
@@ -76,12 +76,12 @@ public class SubjectService {
     public SubjectDTO update(Long id, SubjectDTO dto) {
         Subject exist = subjectRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Subject not found id=" + id));
+                        "Không tìm thấy môn học id=" + id));
 
         // check dupicate
         if (!dto.getCode().equals(exist.getCode())) {
             if (subjectRepo.existsByCode(dto.getCode())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Subject code already exists");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã môn học đã tồn tại");
             }
             exist.setCode(dto.getCode());
         }
@@ -94,12 +94,12 @@ public class SubjectService {
             boolean hasEnrollments = enrollmentRepo.existsByClassSubjectTeacher_Subject_Id(id);
             if (hasEnrollments) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "This subject has enrolled students, please unenroll before updating grade");
+                        "Môn học này đang có học sinh đăng ký, hãy huỷ đăng ký để cập nhật khối");
             }
 
             Grade grade = gradeRepo.findById(dto.getGradeId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Grade not found id=" + dto.getGradeId()));
+                            "Không tìm thấy khối id=" + dto.getGradeId()));
             exist.setGrade(grade);
         }
 
@@ -113,18 +113,18 @@ public class SubjectService {
     public void delete(Long id) {
         Subject subject = subjectRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Subject not found id=" + id));
+                        "Không tìm thấy môn học id=" + id));
 
         //if having enrollment, throw
         if (enrollmentRepo.existsByClassSubjectTeacher_Subject_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Cannot delete subject: there are students enrolled in this subject");
+                    "Không thể xoá môn học vì có học sinh đang học");
         }
 
         // if having in cst, throw error
         if (cstRepo.existsBySubject_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Cannot delete subject: it is currently assigned to classes or teachers");
+                    "Không thể xoá môn học vì môn học đang được gán cho lớp nào đó");
         }
 
         // delete subject

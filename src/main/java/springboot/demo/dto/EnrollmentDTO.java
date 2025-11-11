@@ -10,13 +10,13 @@ import jakarta.validation.constraints.*;
 public class EnrollmentDTO {
     private Long id;
 
-    @NotNull(message = "studentId is required")
+    @NotNull(message = "Mã học sinh bắt buộc")
     private Long studentId;
 
     // Optional
     private String studentName;
 
-    @NotNull(message = "classSubjectTeacherId is required")
+    @NotNull(message = "CST bắt buộc")
     private Long classSubjectTeacherId;
 
     // Optional
@@ -24,7 +24,7 @@ public class EnrollmentDTO {
     private String className;
     private String teacherName;
 
-    @DecimalMin(value = "0.0", inclusive = true, message = "grade must be >= 0")
-    @DecimalMax(value = "10.0", inclusive = true, message = "grade must be <= 10")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Điểm phải >= 0")
+    @DecimalMax(value = "10.0", inclusive = true, message = "Điểm phải <= 10")
     private Double grade;
 }

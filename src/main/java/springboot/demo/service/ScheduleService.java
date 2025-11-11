@@ -32,7 +32,7 @@ public class ScheduleService {
 
     public ScheduleDTO findById(Long id) {
         Schedule s = scheduleRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found id=" + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thời khoá biểu id=" + id));
         return ScheduleMapper.toDTO(s);
     }
 
@@ -42,7 +42,7 @@ public class ScheduleService {
         // get ClassSubjectTeacher from DB
         ClassSubjectTeacher cst = cstRepo.findById(dto.getClassSubjectTeacherId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Class-Subject-Teacher assignment not found."));
+                        "Không tìm thấy CST"));
 
         Schedule schedule = Schedule.builder()
                 .classSubjectTeacher(cst)
@@ -53,13 +53,13 @@ public class ScheduleService {
         // Check schedule of teacher
         if (scheduleRepo.existsByClassSubjectTeacher_Teacher_IdAndDayOfWeekAndPeriod(
                 cst.getTeacher().getId(), schedule.getDayOfWeek(), schedule.getPeriod())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Teacher has another class at this time.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Giáo viên dạy lớp khác ở thời gian này");
         }
 
         // Check schedule of class
         if (scheduleRepo.existsByClassSubjectTeacher_SchoolClass_IdAndDayOfWeekAndPeriod(
                 cst.getSchoolClass().getId(), schedule.getDayOfWeek(), schedule.getPeriod())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Class has another subject at this time.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lớp học có môn khác ở thời gian này");
         }
 
         Schedule saved = scheduleRepo.save(schedule);
@@ -71,7 +71,7 @@ public class ScheduleService {
     @Transactional
     public ScheduleDTO update(Long id, ScheduleDTO dto) {
         Schedule existing = scheduleRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found id=" + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thời khoá biểu id=" + id));
 
         Schedule schedule = ScheduleMapper.toEntity(dto);
 
@@ -82,18 +82,18 @@ public class ScheduleService {
         // Check CST exist
         ClassSubjectTeacher cst = cstRepo.findById(cstId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Class-Subject-Teacher assignment not found"));
+                        "Không tìm thấy CST"));
 
         // Check schedule of teacher
         if (scheduleRepo.existsByClassSubjectTeacher_Teacher_IdAndDayOfWeekAndPeriodAndIdNot(
                 cst.getTeacher().getId(), day, period, id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Teacher has another class at this time.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Giáo viên dạy môn khác ở thời gian này");
         }
 
         // Check schedule of class
         if (scheduleRepo.existsByClassSubjectTeacher_SchoolClass_IdAndDayOfWeekAndPeriodAndIdNot(
                 cst.getSchoolClass().getId(), day, period, id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Class has another subject at this time.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lớp học có môn học khác ở thời gian này");
         }
 
         // Create schedule
@@ -116,7 +116,7 @@ public class ScheduleService {
     public void delete(Long id) {
         Schedule schedule = scheduleRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Schedule not found id=" + id));
+                        "Không tìm thấy thời khoá biểu id=" + id));
         scheduleRepo.delete(schedule);
     }
 

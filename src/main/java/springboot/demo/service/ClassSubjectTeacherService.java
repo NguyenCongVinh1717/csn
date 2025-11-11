@@ -1,6 +1,7 @@
 package springboot.demo.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,27 +26,28 @@ public class ClassSubjectTeacherService {
     private final ClassRepository classRepo;
     private final EnrollmentRepository enrollmentRepository;
     private final GradeRepository gradeRepo;
+    private final ScheduleRepository scheduleRepository;
 
 
     @Transactional
     public void assignSubjectAndTeacherToClass(Long classId, Long subjectId, Long teacherId) {
         SchoolClass schoolClass = classRepo.findById(classId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Class not found id=" + classId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy lớp có id=" + classId));
         Subject subject = subjectRepo.findById(subjectId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subject not found id=" + subjectId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy môn học có id=" + subjectId));
         Teacher teacher = teacherRepo.findById(teacherId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teacher not found id=" + teacherId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy giáo viên có id=" + teacherId));
 
         // check the grade of subject is belong to class
         if (!subject.getGrade().getId().equals(schoolClass.getGrade().getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Subject grade does not match class grade");
+                    "Môn học này không dành cho lớp của bạn");
         }
 
         // check whether the subject is assigned for that class?
         if (cstRepo.existsBySchoolClass_IdAndSubject_Id(classId, subjectId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "This class already has this subject assigned");
+                    "Lớp này đã có môn học đó");
         }
 
         // Create ClassSubjectTeacher
@@ -73,14 +75,20 @@ public class ClassSubjectTeacherService {
     @Transactional
     public void unassign(Long classId, Long subjectId, Long teacherId) {
         ClassSubjectTeacher cst = cstRepo.findBySchoolClassIdAndSubjectIdAndTeacherId(classId, subjectId, teacherId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assignment not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy"));
 
         // If having students, throw error
-        boolean hasEnrollments = enrollmentRepository.existsByClassSubjectTeacher_Id(cst.getId());
-        if (hasEnrollments) {
+//        boolean hasEnrollments = enrollmentRepository.existsByClassSubjectTeacher_Id(cst.getId());
+//        if (hasEnrollments) {
+//            throw new ResponseStatusException(HttpStatus.CONFLICT,
+//                    "Cannot unassign subject from class: students are already enrolled");
+//        }
+        boolean hasSchedules = scheduleRepository.existsByClassSubjectTeacher_Id(cst.getId());
+        if (hasSchedules) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Cannot unassign subject from class: students are already enrolled");
+                    "Bạn phải gỡ thời khoá biểu trước khi gỡ phân công");
         }
+
 
         // If no students, deleting
         cstRepo.delete(cst);
@@ -93,19 +101,19 @@ public class ClassSubjectTeacherService {
         ClassSubjectTeacher cst = cstRepo.findBySchoolClass_IdAndSubject_Id(classId, subjectId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Assignment not found for classId=" + classId + ", subjectId=" + subjectId
+                        "Không tìm thấy với mã lớp là " + classId + ", môn học là " + subjectId
                 ));
 
         //  Check existing of new teacher
         Teacher newTeacher = teacherRepo.findById(newTeacherId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Teacher not found id=" + newTeacherId
+                        "Không tìm thấy giáo viên có id=" + newTeacherId
                 ));
 
         // If that teacher is teaching that subject, no change
         if (cst.getTeacher().getId().equals(newTeacherId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This teacher is already assigned to this class and subject.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Giáo viên này đã dạy môn này rồi");
         }
 
         //Change teacher
@@ -120,7 +128,7 @@ public class ClassSubjectTeacherService {
     //  List all teachers teaching a specific subject in all classes
     public List<TeacherDTO> listTeachersBySubject(Long subjectId) {
         subjectRepo.findById(subjectId)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found id=" + subjectId));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy môn học id=" + subjectId));
 
         return cstRepo.findBySubjectId(subjectId).stream()
                 .map(ClassSubjectTeacher::getTeacher)
@@ -131,7 +139,7 @@ public class ClassSubjectTeacherService {
 
     public List<SubjectDTO> listSubjectsByTeacher(Long teacherId) {
         teacherRepo.findById(teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("Teacher not found id=" + teacherId));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giáo viên id=" + teacherId));
 
         return cstRepo.findByTeacherId(teacherId).stream()
                 .map(ClassSubjectTeacher::getSubject)
@@ -142,7 +150,7 @@ public class ClassSubjectTeacherService {
 
     public List<SubjectDTO> listSubjectsByClass(Long classId) {
         classRepo.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Class not found id=" + classId));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lớp id=" + classId));
 
         return cstRepo.findBySchoolClassId(classId).stream()
                 .map(ClassSubjectTeacher::getSubject)
@@ -150,11 +158,13 @@ public class ClassSubjectTeacherService {
                 .collect(Collectors.toList());
     }
 
-    public List<ClassSubjectTeacherDTO> listClassesBySubjectId(Long subjectId) {
+    public List<ClassSubjectTeacherDTO> listClassesBySubjectIdAndTeacherId(Long subjectId, Long teacherId) {
         subjectRepo.findById(subjectId)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found id=" + subjectId));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy môn học id=" + subjectId));
+        teacherRepo.findById(teacherId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giáo viên id=" + teacherId));
 
-        List<ClassSubjectTeacher> list = cstRepo.findBySubject_Id(subjectId);
+        List<ClassSubjectTeacher> list = cstRepo.findBySubject_IdAndTeacher_Id(subjectId,teacherId);
 
         return list.stream()
                 .map(cst -> ClassSubjectTeacherDTO.builder()
@@ -224,6 +234,5 @@ public class ClassSubjectTeacherService {
     public long countClasses(){
         return classRepo.count();
     }
-
 
 }

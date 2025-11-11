@@ -11,23 +11,23 @@ import jakarta.validation.constraints.*;
 public class StudentDTO {
     private Long id;
 
-    @NotBlank(message = "studentCode is required")
+    @NotBlank(message = "Mã học sinh bắt buộc")
     private String studentCode;
 
-    @NotBlank(message = "fullName is required")
+    @NotBlank(message = "Họ tên bắt buộc")
     private String fullName;
 
-    @Past(message = "dob must be in the past")
+    @Past(message = "Ngày sinh phải hợp lệ")
     private LocalDate dob;
 
     private String gender;
 
-    @Email(message = "email must be valid")
+    @Email(message = "Email phải hợp lệ ")
     private String email;
 
     private String phone;
 
-    @NotNull(message = "classId is required")
+    @NotNull(message = "Mã lớp bắt buộc")
     private Long classId;
 
     // optional

@@ -48,7 +48,7 @@ public class StudentService {
 
     public StudentDTO findById(Long id) {
         Student s = studentRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy học sinh"));
         return StudentMapper.toDto(s);
     }
 
@@ -74,11 +74,11 @@ public class StudentService {
         // check class exist
         SchoolClass sc = classRepo.findById(dto.getClassId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Class not found id=" + dto.getClassId()));
+                        "Không tìm thấy lớp học id=" + dto.getClassId()));
 
         //  check dupicate studentCode
         if (studentRepo.existsByStudentCode(dto.getStudentCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Student code already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã học sinh đã tồn tại");
         }
 
         // tranform entity and save
@@ -123,18 +123,18 @@ public class StudentService {
     @Transactional
     public StudentDTO update(Long id, StudentDTO dto) {
         Student exist = studentRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy học sinh"));
 
         // check duplicate studentCode
         if (!exist.getStudentCode().equals(dto.getStudentCode())
                 && studentRepo.existsByStudentCode(dto.getStudentCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Student code already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã học sinh đã tồn tại");
         }
 
         // check class exist
         SchoolClass sc = classRepo.findById(dto.getClassId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Class not found id=" + dto.getClassId()));
+                        "Không tìm thấy lớp học id=" + dto.getClassId()));
 
         // check if class changed
         Long oldClassId = exist.getSchoolClass() != null ? exist.getSchoolClass().getId() : null;
@@ -146,13 +146,13 @@ public class StudentService {
         // prevent changing class if student already has enrollments
         if (classChanged && enrollmentRepo.existsByStudent_Id(id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot change class because student has enrollments");
+                    "Không thể đổi lớp vì học sinh đã đăng ký môn học");
         }
 
         // If changing studentCode, also change in account
         if (!exist.getStudentCode().equals(dto.getStudentCode())) {
             if (userRepo.existsByUsername(dto.getStudentCode())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Account username already exists");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Không tìm thấy tài khoản");
             }
 
             userRepo.findByStudentId(id).ifPresent(user -> {
@@ -197,12 +197,12 @@ public class StudentService {
     public void delete(Long id) {
         // check exist
         Student sv = studentRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found id=" + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy học sinh id=" + id));
 
         //if having enrollmemts, throw error
         if (enrollmentRepo.existsByStudent_Id(id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot delete student because student has enrollments");
+                    "Không thể xoá vì học sinh đang có môn học");
         }
 
         // delete account
@@ -216,7 +216,7 @@ public class StudentService {
     //ENROLLMENTS
     public List<EnrollmentDTO> getEnrollments(Long studentId) {
         studentRepo.findById(studentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy học sinh"));
 
         List<Enrollment> ens = enrollmentRepo.findByStudentId(studentId);
         return ens.stream()
@@ -230,41 +230,68 @@ public class StudentService {
     }
 
     // BATCH CREATE
+    @Transactional
     public int createBatchWithAccount(List<StudentDTO> dtos) {
-        int created = 0;
-        for (StudentDTO dto : dtos) {
-            if (dto == null || dto.getStudentCode() == null || dto.getFullName() == null || dto.getClassId() == null)
-                continue;
+        int createdCount = 0;
 
-            if (dto.getClassId() == null && dto.getClassName() != null) {
-                SchoolClass found = classRepo.findByName(dto.getClassName()).orElse(null);
-                if (found != null) dto.setClassId(found.getId());
+        for (StudentDTO dto : dtos) {
+            //Find class
+            SchoolClass sc = classRepo.findById(dto.getClassId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Không tìm thấy lớp học id=" + dto.getClassId() +
+                                    " cho học sinh: " + dto.getStudentCode()
+                    ));
+
+            // check dupicate
+            if (studentRepo.existsByStudentCode(dto.getStudentCode())) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Mã học sinh đã tồn tại: " + dto.getStudentCode()
+                );
             }
 
-            if (dto.getClassId() == null) continue;
-
-            if (studentRepo.existsByStudentCode(dto.getStudentCode()))
-                continue;
-
-            SchoolClass sc = classRepo.findById(dto.getClassId()).orElse(null);
-            if (sc == null) continue;
-
+            // save
             Student s = StudentMapper.toEntity(dto);
             s.setSchoolClass(sc);
             Student saved = studentRepo.save(s);
 
-            if (!userRepo.existsByUsername(saved.getStudentCode())) {
-                AppUser u = new AppUser();
-                u.setUsername(saved.getStudentCode());
-                u.setPassword(passwordEncoder.encode("stud123"));
-                u.setRole("STUDENT");
-                u.setStudentId(saved.getId());
-                userRepo.save(u);
+            //enroll subject
+            List<ClassSubjectTeacher> classSubjects = cstRepo.findBySchoolClassId(sc.getId());
+            if (!classSubjects.isEmpty()) {
+                List<Enrollment> enrollments = classSubjects.stream()
+                        .map(cst -> Enrollment.builder()
+                                .student(saved)
+                                .classSubjectTeacher(cst)
+                                .grade(null)
+                                .build())
+                        .toList();
+                enrollmentRepo.saveAll(enrollments);
             }
-            created++;
+
+            // create account
+            String username = saved.getStudentCode();
+            if (userRepo.existsByUsername(username)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Tài khoản học sinh đã tồn tại : " + username
+                );
+            }
+
+            AppUser u = AppUser.builder()
+                    .username(username)
+                    .password(passwordEncoder.encode("stud123"))
+                    .role("STUDENT")
+                    .studentId(saved.getId())
+                    .build();
+            userRepo.save(u);
+
+            createdCount++;
         }
-        return created;
+
+        return createdCount;
     }
+
 
     //EXPORT TO EXCEL
     public ByteArrayResource exportStudentsToExcel() throws IOException {
@@ -272,13 +299,13 @@ public class StudentService {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Students");
         Row header = sheet.createRow(0);
-        header.createCell(0).setCellValue("Student Code");
-        header.createCell(1).setCellValue("Full Name");
-        header.createCell(2).setCellValue("DOB");
-        header.createCell(3).setCellValue("Gender");
+        header.createCell(0).setCellValue("Mã học sinh");
+        header.createCell(1).setCellValue("Họ tên");
+        header.createCell(2).setCellValue("Ngày sinh");
+        header.createCell(3).setCellValue("Giới tính");
         header.createCell(4).setCellValue("Email");
-        header.createCell(5).setCellValue("Phone");
-        header.createCell(6).setCellValue("Class Name");
+        header.createCell(5).setCellValue("Số điện thoại");
+        header.createCell(6).setCellValue("Lớp");
 
         int rowIdx = 1;
         for (Student s : students) {
@@ -310,16 +337,16 @@ public class StudentService {
         String username = auth.getName();
 
         AppUser user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
 
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu cũ không đúng");
 
         if (passwordEncoder.matches(req.getNewPassword(), user.getPassword()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from old password");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu cũ");
 
         if (!req.getNewPassword().equals(req.getConfirmPassword()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password and confirm password do not match");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới và xác nhận mật khẩu không trùng");
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepo.save(user);

@@ -11,18 +11,18 @@ import jakarta.validation.constraints.*;
 public class SubjectDTO {
     private Long id;
 
-    @NotBlank(message = "name is required")
+    @NotBlank(message = "Tên lớp bắt buộc")
     private String name;
 
-    @NotBlank(message = "code is required")
+    @NotBlank(message = "Mã lớp bắt buộc")
     private String code;
 
-    @NotNull(message = "credit is required")
-    @Min(value = 0, message = "credit must be >= 0")
+    @NotNull(message = "Số tín chỉ bắt bộc")
+    @Min(value = 1, message = "Số tín chỉ phải > 0")
     private Integer credit;
 
 
-    @NotNull(message = "gradeId is required")
+    @NotNull(message = "Mã khối bắt buộc")
     private Long gradeId;
 
 
