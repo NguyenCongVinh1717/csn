@@ -330,6 +330,7 @@ public class StudentService {
     // CHANGE PASSWORD
     @Transactional
     public void changePassword(ChangePasswordRequest req) {
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null)
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
@@ -337,7 +338,8 @@ public class StudentService {
         String username = auth.getName();
 
         AppUser user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
 
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu cũ không đúng");
@@ -351,6 +353,7 @@ public class StudentService {
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepo.save(user);
     }
+
 
     // INNER CLASS
     public static class CreateResult {

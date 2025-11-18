@@ -222,26 +222,25 @@ public class TeacherService {
 
     @Transactional
     public void changePassword(ChangePasswordRequest req) {
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getName() == null) {
+        if (auth == null || auth.getName() == null)
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
-        }
+
         String username = auth.getName();
 
         AppUser user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản"));
 
-        if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu cũ không đúng");
-        }
 
-        if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
+        if (passwordEncoder.matches(req.getNewPassword(), user.getPassword()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu cũ");
-        }
 
-        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+        if (!req.getNewPassword().equals(req.getConfirmPassword()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới và xác nhận mật khẩu không trùng");
-        }
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepo.save(user);

@@ -6,13 +6,13 @@ import jakarta.validation.constraints.*;
 @Getter
 @Setter
 public class ChangePasswordRequest {
-    @NotBlank(message = "oldPassword is required")
+    @NotBlank(message = "Mật khẩu cũ bắt buộc")
     private String oldPassword;
 
-    @NotBlank(message = "newPassword is required")
-    @Size(min = 8, message = "newPassword must be at least 8 characters")
+    @NotBlank(message = "Mật khẩu mới bắt buộc")
+    @Size(min = 6, message = "Mật khẩu mới phải ít nhất 6 kí tự")
     private String newPassword;
 
-    @NotBlank(message = "confirmPassword is required")
+    @NotBlank(message = "Xác nhận mật khẩu bắt buộc")
     private String confirmPassword;
 }

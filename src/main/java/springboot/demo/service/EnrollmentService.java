@@ -43,6 +43,15 @@ public class EnrollmentService{
         return EnrollmentMapper.toDto(saved);
     }
 
+    public EnrollmentDTO deleteGrade(Long studentId, Long cstId){
+        Enrollment e = enrollmentRepo
+                .findByStudent_IdAndClassSubjectTeacher_Id(studentId, cstId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bản đăng ký"));
+        e.setGrade(null);
+        Enrollment saved=enrollmentRepo.save(e);
+        return EnrollmentMapper.toDto(saved);
+    }
+
     public EnrollmentDTO enroll(Long studentId, Long cstId) {
         Student student = studentRepo.findById(studentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy học sinh"));

@@ -37,7 +37,10 @@ public class TeacherController {
         return enrollmentService.setGrade(studentId, cstId, grade);
     }
     //need a function for deleting grade.
-
+    @PutMapping("/deleteGrade/{studentId}/CST/{cstId}")
+    public EnrollmentDTO deleteGrade(@PathVariable Long studentId, @PathVariable Long cstId){
+        return enrollmentService.deleteGrade(studentId,cstId);
+    }
 
     @GetMapping("/classesOfSubjectAndTeacher/{subjectId}/{teacherId}")
     public List<ClassSubjectTeacherDTO> getClassesBySubject(@PathVariable Long subjectId,@PathVariable Long teacherId){
